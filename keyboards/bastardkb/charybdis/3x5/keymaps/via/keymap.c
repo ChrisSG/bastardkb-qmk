@@ -26,11 +26,13 @@ enum charybdis_keymap_layers {
     LAYER_NAVIGATION,
     LAYER_MEDIA,
     LAYER_POINTER,
+    LAYER_POINTER_AUTO,
     LAYER_NUMERAL,
     LAYER_SYMBOLS,
 };
 
 // Automatically enable sniping-mode on the pointer layer.
+// Mutually exclusive with CHARYBDIS_ENABLE_POINTER_ON_POINTER_LAYER_ONLY.
 #define CHARYBDIS_AUTO_SNIPING_ON_LAYER LAYER_POINTER
 
 #ifdef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
@@ -60,12 +62,25 @@ static uint16_t auto_pointer_layer_timer = 0;
 #endif // !POINTING_DEVICE_ENABLE
 
 // clang-format off
+#ifdef CHARYBDIS_LAYOUT_COLEMAK_DHM
+
+/** \brief Colemak DHm layout (3 rows, 10 columns). */
+#define LAYOUT_LAYER_BASE                                                                     \
+KC_Q,    KC_W,    KC_F,    KC_P,    KC_B,    KC_J,    KC_L,    KC_U,    KC_Y, KC_QUOT, \
+KC_A,    KC_R,    KC_S,    KC_T,    KC_G,    KC_M,    KC_N,    KC_E,    KC_I, KC_O,    \
+KC_Z,    KC_X,    KC_C,    KC_D,    KC_V,    KC_K,    KC_H, KC_COMM,  KC_DOT, KC_SLSH, \
+ESC_MED, SPC_NAV, TAB_FUN, ENT_SYM, BSP_NUM
+
+#else // CHARYBDIS_LAYOUT_COLEMAK_DHM
+
 /** \brief QWERTY layout (3 rows, 10 columns). */
 #define LAYOUT_LAYER_BASE                                                                     \
-       KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P, \
-       KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L, KC_QUOT, \
-       KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M, KC_COMM,  KC_DOT, KC_SLSH, \
-                      ESC_MED, SPC_NAV, TAB_FUN, ENT_SYM, BSP_NUM
+KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P, \
+KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L, KC_QUOT, \
+KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M, KC_COMM,  KC_DOT, KC_SLSH, \
+ESC_MED, SPC_NAV, TAB_FUN, ENT_SYM, BSP_NUM
+
+#endif // CHARYBDIS_LAYOUT_COLEMAK_DHm
 
 /** Convenience row shorthands. */
 #define _______________DEAD_HALF_ROW_______________ XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX
@@ -211,30 +226,68 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [LAYER_MEDIA] = LAYOUT_wrapper(LAYOUT_LAYER_MEDIA),
   [LAYER_NUMERAL] = LAYOUT_wrapper(LAYOUT_LAYER_NUMERAL),
   [LAYER_POINTER] = LAYOUT_wrapper(LAYOUT_LAYER_POINTER),
+  [LAYER_POINTER_AUTO] = LAYOUT_wrapper(LAYOUT_LAYER_POINTER),
   [LAYER_SYMBOLS] = LAYOUT_wrapper(LAYOUT_LAYER_SYMBOLS),
 };
-// clang-format on
+
+// Adds separate tapping term for GUI keys to prevent accidental triggering.
+uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+#ifdef CHARYBDIS_LAYOUT_COLEMAK_DHM
+        case LGUI_T(KC_A):
+        case RGUI_T(KC_O):
+#else
+        case LGUI_T(KC_A):
+        case RGUI_T(KC_QUOT):
+#endif // CHARYBDIS_LAYOUT_COLEMAK_DHM
+            return TAPPING_TERM_GUI;
+        default:
+            return TAPPING_TERM;
+    }
+}
 
 #ifdef POINTING_DEVICE_ENABLE
-#    ifdef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
 report_mouse_t pointing_device_task_user(report_mouse_t mouse_report) {
+#    ifdef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
     if (abs(mouse_report.x) > CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD || abs(mouse_report.y) > CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD) {
         if (auto_pointer_layer_timer == 0) {
-            layer_on(LAYER_POINTER);
+            layer_on(LAYER_POINTER_AUTO);
+            charybdis_set_pointing_device_enabled(true);
 #        ifdef RGB_MATRIX_ENABLE
             rgb_matrix_mode_noeeprom(RGB_MATRIX_NONE);
             rgb_matrix_sethsv_noeeprom(HSV_GREEN);
 #        endif // RGB_MATRIX_ENABLE
         }
+    }
+
+    // Keep pointer layer active while mouse is moving.
+    if (layer_state_cmp(layer_state, LAYER_POINTER_AUTO) && (mouse_report.x != 0 || mouse_report.y != 0)) {
         auto_pointer_layer_timer = timer_read();
     }
+#    endif // CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
+
+#    ifdef CHARYBDIS_ENABLE_POINTER_ON_POINTER_LAYER_ONLY
+    // Stop mouse movement if not in mouse layer.
+    if (!charybdis_get_pointing_device_enabled()) {
+        mouse_report.x = 0;
+        mouse_report.y = 0;
+        return mouse_report;
+    }
+#    endif // CHARYBDIS_ENABLE_POINTER_ON_LAYER
+
     return mouse_report;
 }
 
+#    ifdef CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
 void matrix_scan_user(void) {
     if (auto_pointer_layer_timer != 0 && TIMER_DIFF_16(timer_read(), auto_pointer_layer_timer) >= CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS) {
         auto_pointer_layer_timer = 0;
-        layer_off(LAYER_POINTER);
+
+#        ifdef CHARYBDIS_ENABLE_POINTER_ON_POINTER_LAYER_ONLY
+        charybdis_set_pointing_device_enabled(false);
+#        endif // CHARYBDIS_ENABLE_POINTER_ON_POINTER_LAYER_ONLY
+        //
+        layer_off(LAYER_POINTER_AUTO);
 #        ifdef RGB_MATRIX_ENABLE
         rgb_matrix_mode_noeeprom(RGB_MATRIX_DEFAULT_MODE);
 #        endif // RGB_MATRIX_ENABLE
@@ -242,13 +295,25 @@ void matrix_scan_user(void) {
 }
 #    endif // CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
 
-#    ifdef CHARYBDIS_AUTO_SNIPING_ON_LAYER
+#    ifdef CHARYBDIS_ENABLE_POINTER_ON_POINTER_LAYER_ONLY
+layer_state_t layer_state_set_user(layer_state_t state) {
+    // Enable pointing device when pointer or auto pointer layer is active.
+    if (layer_state_cmp(state, LAYER_POINTER_AUTO) || layer_state_cmp(state, LAYER_POINTER)) {
+        charybdis_set_pointing_device_enabled(true);
+    } else {
+        charybdis_set_pointing_device_enabled(false);
+    }
+
+    return state;
+}
+#    elif CHARYBDIS_AUTO_SNIPING_ON_LAYER
 layer_state_t layer_state_set_user(layer_state_t state) {
     charybdis_set_pointer_sniping_enabled(layer_state_cmp(state, CHARYBDIS_AUTO_SNIPING_ON_LAYER));
     return state;
 }
 #    endif // CHARYBDIS_AUTO_SNIPING_ON_LAYER
-#endif     // POINTING_DEVICE_ENABLE
+
+#endif // POINTING_DEVICE_ENABLE
 
 #ifdef RGB_MATRIX_ENABLE
 // Forward-declare this helper function since it is defined in

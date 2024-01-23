@@ -108,4 +108,15 @@ bool charybdis_get_pointer_dragscroll_enabled(void);
  * are translated into horizontal and vertical scroll movements.
  */
 void charybdis_set_pointer_dragscroll_enabled(bool enable);
+
+/**
+ * \brief Enable/disable pointer if in mouse layer
+ */
+void charybdis_set_pointing_device_enabled(bool enable);
+
+/**
+ * \brief Return whether pointer is enabled
+ */
+bool charybdis_get_pointing_device_enabled(void);
+
 #endif // POINTING_DEVICE_ENABLE

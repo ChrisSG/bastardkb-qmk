@@ -58,6 +58,7 @@ typedef union {
         uint8_t pointer_sniping_dpi : 2; // 4 steps available.
         bool    is_dragscroll_enabled : 1;
         bool    is_sniping_enabled : 1;
+        bool    is_pointing_device_enabled : 1;
     } __attribute__((packed));
 } charybdis_config_t;
 
@@ -72,9 +73,10 @@ static charybdis_config_t g_charybdis_config = {0};
  * explicitly set them to `false` in this function.
  */
 static void read_charybdis_config_from_eeprom(charybdis_config_t* config) {
-    config->raw                   = eeconfig_read_kb() & 0xff;
-    config->is_dragscroll_enabled = false;
-    config->is_sniping_enabled    = false;
+    config->raw                        = eeconfig_read_kb() & 0xff;
+    config->is_dragscroll_enabled      = false;
+    config->is_sniping_enabled         = false;
+    config->is_pointing_device_enabled = false;
 }
 
 /**
@@ -176,6 +178,14 @@ void charybdis_set_pointer_dragscroll_enabled(bool enable) {
     maybe_update_pointing_device_cpi(&g_charybdis_config);
 }
 
+void charybdis_set_pointing_device_enabled(bool enable) {
+    g_charybdis_config.is_pointing_device_enabled = enable;
+}
+
+bool charybdis_get_pointing_device_enabled(void) {
+    return g_charybdis_config.is_pointing_device_enabled;
+}
+
 /**
  * \brief Augment the pointing device behavior.
  *
@@ -184,6 +194,7 @@ void charybdis_set_pointer_dragscroll_enabled(bool enable) {
 static void pointing_device_task_charybdis(report_mouse_t* mouse_report) {
     static int16_t scroll_buffer_x = 0;
     static int16_t scroll_buffer_y = 0;
+
     if (g_charybdis_config.is_dragscroll_enabled) {
 #    ifdef CHARYBDIS_DRAGSCROLL_REVERSE_X
         scroll_buffer_x -= mouse_report->x;

@@ -18,8 +18,23 @@
 
 #pragma once
 
+/* Keyboard configuration. */
+#define TAPPING_TERM 200
+#define TAPPING_TERM_GUI 600
+#define TAPPING_TERM_PER_KEY
+/* #define CHARYBDIS_LAYOUT_COLEMAK_DHM */
+#define CHARYBDIS_ENABLE_POINTER_ON_POINTER_LAYER_ONLY
+#define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_ENABLE
+#define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_THRESHOLD 2
+#define CHARYBDIS_AUTO_POINTER_LAYER_TRIGGER_TIMEOUT_MS 600
 
 /* Pointing device configuration. */
+
+// Set the minimum mouse speed when sniping.
+#define CHARYBDIS_MINIMUM_SNIPING_DPI 100
+
+// Invert Y axis on drag scroll.
+#define CHARYBDIS_DRAGSCROLL_REVERSE_Y
 
 // Enable use of pointing device on slave split.
 #define SPLIT_POINTING_ENABLE
