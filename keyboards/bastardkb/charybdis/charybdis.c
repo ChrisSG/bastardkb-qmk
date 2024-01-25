@@ -58,7 +58,6 @@ typedef union {
         uint8_t pointer_sniping_dpi : 2; // 4 steps available.
         bool    is_dragscroll_enabled : 1;
         bool    is_sniping_enabled : 1;
-        bool    is_pointing_device_enabled : 1;
     } __attribute__((packed));
 } charybdis_config_t;
 
@@ -73,10 +72,9 @@ static charybdis_config_t g_charybdis_config = {0};
  * explicitly set them to `false` in this function.
  */
 static void read_charybdis_config_from_eeprom(charybdis_config_t* config) {
-    config->raw                        = eeconfig_read_kb() & 0xff;
-    config->is_dragscroll_enabled      = false;
-    config->is_sniping_enabled         = false;
-    config->is_pointing_device_enabled = false;
+    config->raw                   = eeconfig_read_kb() & 0xff;
+    config->is_dragscroll_enabled = false;
+    config->is_sniping_enabled    = false;
 }
 
 /**
@@ -176,14 +174,6 @@ bool charybdis_get_pointer_dragscroll_enabled(void) {
 void charybdis_set_pointer_dragscroll_enabled(bool enable) {
     g_charybdis_config.is_dragscroll_enabled = enable;
     maybe_update_pointing_device_cpi(&g_charybdis_config);
-}
-
-void charybdis_set_pointing_device_enabled(bool enable) {
-    g_charybdis_config.is_pointing_device_enabled = enable;
-}
-
-bool charybdis_get_pointing_device_enabled(void) {
-    return g_charybdis_config.is_pointing_device_enabled;
 }
 
 /**
