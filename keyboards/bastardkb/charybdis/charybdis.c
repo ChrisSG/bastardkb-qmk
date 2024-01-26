@@ -184,7 +184,6 @@ void charybdis_set_pointer_dragscroll_enabled(bool enable) {
 static void pointing_device_task_charybdis(report_mouse_t* mouse_report) {
     static int16_t scroll_buffer_x = 0;
     static int16_t scroll_buffer_y = 0;
-
     if (g_charybdis_config.is_dragscroll_enabled) {
 #    ifdef CHARYBDIS_DRAGSCROLL_REVERSE_X
         scroll_buffer_x -= mouse_report->x;
@@ -215,6 +214,18 @@ report_mouse_t pointing_device_task_kb(report_mouse_t mouse_report) {
         mouse_report = pointing_device_task_user(mouse_report);
     }
     return mouse_report;
+}
+
+bool is_mouse_record_kb(uint16_t keycode, keyrecord_t* record) {
+    switch (keycode) {
+        case DRGSCRL:
+            return true;
+        case SNIPING:
+            return true;
+        default:
+            return false;
+    }
+    return is_mouse_record_user(keycode, record);
 }
 
 #    if defined(POINTING_DEVICE_ENABLE) && !defined(NO_CHARYBDIS_KEYCODES)
