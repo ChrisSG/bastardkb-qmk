@@ -61,6 +61,7 @@ typedef union {
     } __attribute__((packed));
 } charybdis_config_t;
 
+// Set the default values.
 static charybdis_config_t g_charybdis_config = {0};
 
 /**
@@ -324,6 +325,9 @@ bool process_record_kb(uint16_t keycode, keyrecord_t* record) {
 
 void eeconfig_init_kb(void) {
     g_charybdis_config.raw = 0;
+#    ifdef CHARYBDIS_DEFAULT_DPI_INIT_STEP
+    g_charybdis_config.pointer_default_dpi = CHARYBDIS_DEFAULT_DPI_INIT_STEP;
+#    endif // CHARYBDIS_DEFAULT_DPI_INIT_STEP
     write_charybdis_config_to_eeprom(&g_charybdis_config);
     maybe_update_pointing_device_cpi(&g_charybdis_config);
     eeconfig_init_user();
