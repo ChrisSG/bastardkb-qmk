@@ -36,6 +36,8 @@ enum charybdis_keymap_layers {
 #define ENT_SYM LT(LAYER_SYMBOLS, KC_ENT)
 #define BSP_NUM LT(LAYER_NUMERAL, KC_BSPC)
 #define _L_PTR(KC) LT(LAYER_POINTER, KC)
+#define LP_QK_BOOT LT(0, KC_NO) // long_press_keycode QMK Bootloader
+#define LP_EE_CLR LT(-1, KC_NO) // long_press_keycode EEPROM Clear
 
 #ifndef POINTING_DEVICE_ENABLE
 #    define DRGSCRL KC_NO
@@ -103,14 +105,14 @@ ESC_MED, SPC_NAV, TAB_FUN, ENT_SYM, BSP_NUM
 #define LAYOUT_LAYER_MEDIA                                                                    \
     XXXXXXX,RGB_RMOD, RGB_TOG, RGB_MOD, XXXXXXX, XXXXXXX,RGB_RMOD, RGB_TOG, RGB_MOD, XXXXXXX, \
     KC_MPRV, KC_VOLD, KC_MUTE, KC_VOLU, KC_MNXT, KC_MPRV, KC_VOLD, KC_MUTE, KC_VOLU, KC_MNXT, \
-    XXXXXXX, XXXXXXX, XXXXXXX,  EE_CLR, QK_BOOT, QK_BOOT,  EE_CLR, XXXXXXX, XXXXXXX, XXXXXXX, \
+    XXXXXXX, XXXXXXX, XXXXXXX,  LP_EE_CLR, LP_QK_BOOT, LP_QK_BOOT,  LP_EE_CLR, XXXXXXX, XXXXXXX, XXXXXXX, \
                       _______, KC_MPLY, KC_MSTP, KC_MSTP, KC_MPLY
 
 /** \brief Mouse emulation and pointer functions. */
 #define LAYOUT_LAYER_POINTER                                                                  \
     XXXXXXX, XXXXXXX, XXXXXXX, DPI_MOD, S_D_MOD, S_D_MOD, DPI_MOD, XXXXXXX, XXXXXXX, XXXXXXX, \
     ______________HOME_ROW_GACS_L______________, ______________HOME_ROW_GACS_R______________, \
-    _______, DRGSCRL, SNIPING,  EE_CLR, QK_BOOT, QK_BOOT,  EE_CLR, SNIPING, DRGSCRL, _______, \
+    _______, DRGSCRL, SNIPING,  LP_EE_CLR, LP_QK_BOOT, LP_QK_BOOT,  LP_EE_CLR, SNIPING, DRGSCRL, _______, \
                       KC_BTN2, KC_BTN1, KC_BTN3, KC_BTN3, KC_BTN1
 
 /**
@@ -216,14 +218,25 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 
 void pointing_device_init_user(void) {
-    dprintf("pointing_device_init_user\n");
     set_auto_mouse_layer(LAYER_POINTER); // only required if AUTO_MOUSE_DEFAULT_LAYER is not set to index of <mouse_layer>
     set_auto_mouse_enable(true);         // always required before the auto mouse feature will work
+}
+
+void keyboard_post_init_user(void) {
+  // Customise these values to desired behaviour
+  debug_enable=true;
+  debug_matrix=true;
+  //debug_keyboard=true;
+  //debug_mouse=true;
 }
 
 // Adds separate tapping term for GUI keys to prevent accidental triggering.
 uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
+        // use double the long press term for special keys
+        case LP_QK_BOOT:
+        case LP_EE_CLR:
+            return TAPPING_TERM_LONG_PRESS*2;
 #ifdef CHARYBDIS_LAYOUT_COLEMAK_DHM
         case LGUI_T(KC_A):
         case RGUI_T(KC_O):
@@ -231,21 +244,52 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
         case LGUI_T(KC_A):
         case RGUI_T(KC_QUOT):
 #endif // CHARYBDIS_LAYOUT_COLEMAK_DHM
-            return TAPPING_TERM_GUI;
+            return TAPPING_TERM_LONG_PRESS;
         default:
             return TAPPING_TERM;
     }
 }
 
-// bool auto_mouse_activation(report_mouse_t mouse_report) {
-//     dprintf("auto_mouse_activation %i\n", abs(mouse_report.x));
-//     // Activate auto mouse when the mouse is moved more than CHARYBDIS_AUTO_POINTER_LAYER_ACTIVATION_THRESHOLD
-//     // Copares the absolute value of the mouse movement to the threshold
-//     if (abs(mouse_report.x) > 0 || abs(mouse_report.y) > 0) {
-//         return true;
-//     }
-//     return false;
-// }
+// Helper for implementing tap vs. long-press keys. Given a tap-hold
+// key event, replaces the hold function with `long_press_keycode`.
+static bool process_tap_or_long_press_key(
+    keyrecord_t* record, uint16_t long_press_keycode) {
+
+  if (record->tap.count == 0) {  // Key is being held.
+
+    if (record->event.pressed) {
+
+      // tap_code(long_press_keycode);
+        switch (long_press_keycode) {
+            case QK_BOOT:
+            reset_keyboard();
+            break;
+            case EE_CLR:
+            eeconfig_init();
+            break;
+            default:
+            tap_code(long_press_keycode);
+            break;
+        }
+
+    }
+    return false;  // Skip default handling.
+  }
+  return true;  // Continue default handling.
+}
+
+bool process_record_user(uint16_t keycode, keyrecord_t* record) {
+  switch (keycode) {
+    case LP_QK_BOOT:  // No key on tap, QMK Bootloader on long press.
+
+    return process_tap_or_long_press_key(record, QK_BOOT);
+
+    case LP_EE_CLR :  // No key on tap, EEPROM Clear on long press.
+      return process_tap_or_long_press_key(record, EE_CLR);
+  }
+
+  return true;
+}
 
 #ifdef POINTING_DEVICE_ENABLE
 
