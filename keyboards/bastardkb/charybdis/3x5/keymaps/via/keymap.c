@@ -36,8 +36,9 @@ enum charybdis_keymap_layers {
 #define ENT_SYM LT(LAYER_SYMBOLS, KC_ENT)
 #define BSP_NUM LT(LAYER_NUMERAL, KC_BSPC)
 #define _L_PTR(KC) LT(LAYER_POINTER, KC)
-#define LP_QK_BOOT LT(0, KC_NO) // long_press_keycode QMK Bootloader
-#define LP_EE_CLR LT(-1, KC_NO) // long_press_keycode EEPROM Clear
+#define LP_QK_BOOT LT(0, KC_NO)   // long_press_keycode QMK Bootloader
+#define LP_EE_CLR LT(-1, KC_NO)   // long_press_keycode EEPROM Clear
+#define LP_DRGSCRL(KC) LT(-2, KC) // long_press_keycode Drag Scroll
 
 #ifndef POINTING_DEVICE_ENABLE
 #    define DRGSCRL KC_NO
@@ -189,17 +190,17 @@ ESC_MED, SPC_NAV, TAB_FUN, ENT_SYM, BSP_NUM
  *
  *     POINTER_MOD(LAYER_ALPHAS_QWERTY)
  */
-#define _POINTER_MOD(                                                  \
-    L00, L01, L02, L03, L04, R05, R06, R07, R08, R09,                  \
-    L10, L11, L12, L13, L14, R15, R16, R17, R18, R19,                  \
-    L20, L21, L22, L23, L24, R25, R26, R27, R28, R29,                  \
-    ...)                                                               \
-             L00,         L01,         L02,         L03,         L04,  \
-             R05,         R06,         R07,         R08,         R09,  \
-             L10,         L11,         L12,         L13,         L14,  \
-             R15,         R16,         R17,         R18,         R19,  \
-      _L_PTR(L20),        L21,         L22,         L23,         L24,  \
-             R25,         R26,         R27,         R28,  _L_PTR(R29), \
+#define _POINTER_MOD(                                                         \
+    L00, L01, L02, L03, L04, R05, R06, R07, R08, R09,                         \
+    L10, L11, L12, L13, L14, R15, R16, R17, R18, R19,                         \
+    L20, L21, L22, L23, L24, R25, R26, R27, R28, R29,                         \
+    ...)                                                                      \
+             L00,             L01,         L02,            L03,         L04,  \
+             R05,             R06,         R07,            R08,         R09,  \
+             L10,             L11,         L12,            L13,         L14,  \
+             R15,             R16,         R17,            R18,         R19,  \
+      _L_PTR(L20), LP_DRGSCRL(L21),        L22,            L23,         L24,  \
+             R25,             R26,         R27, LP_DRGSCRL(R28), _L_PTR(R29), \
       __VA_ARGS__
 #define POINTER_MOD(...) _POINTER_MOD(__VA_ARGS__)
 
@@ -237,6 +238,8 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
         case LP_QK_BOOT:
         case LP_EE_CLR:
             return TAPPING_TERM_LONG_PRESS*2;
+        case LP_DRGSCRL(KC_X):
+            return TAPPING_TERM;
 #ifdef CHARYBDIS_LAYOUT_COLEMAK_DHM
         case LGUI_T(KC_A):
         case RGUI_T(KC_O):
@@ -244,7 +247,7 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
         case LGUI_T(KC_A):
         case RGUI_T(KC_QUOT):
 #endif // CHARYBDIS_LAYOUT_COLEMAK_DHM
-            return TAPPING_TERM_LONG_PRESS;
+        return TAPPING_TERM_LONG_PRESS;
         default:
             return TAPPING_TERM;
     }
@@ -262,13 +265,21 @@ static bool process_tap_or_long_press_key(
       // tap_code(long_press_keycode);
         switch (long_press_keycode) {
             case QK_BOOT:
-            reset_keyboard();
-            break;
+                // Bootloader on long press as accidental triggering on mouse layer is annoying.
+                reset_keyboard();
+                break;
             case EE_CLR:
-            eeconfig_init();
-            break;
+                // EEPROM Clear on long press as accidental triggering on mouse layer is annoying.
+                eeconfig_init();
+                break;
+            case DRGSCRL:
+                // Enable pointer dragscroll when key is held as combo for pointer
+                // layer with drag scroll does not always work seamlessly.
+                charybdis_set_pointer_dragscroll_enabled(true);
+                layer_on(LAYER_POINTER);
+                break;
             default:
-            tap_code(long_press_keycode);
+                tap_code(long_press_keycode);
             break;
         }
 
@@ -281,11 +292,11 @@ static bool process_tap_or_long_press_key(
 bool process_record_user(uint16_t keycode, keyrecord_t* record) {
   switch (keycode) {
     case LP_QK_BOOT:  // No key on tap, QMK Bootloader on long press.
-
-    return process_tap_or_long_press_key(record, QK_BOOT);
-
+        return process_tap_or_long_press_key(record, QK_BOOT);
     case LP_EE_CLR :  // No key on tap, EEPROM Clear on long press.
-      return process_tap_or_long_press_key(record, EE_CLR);
+        return process_tap_or_long_press_key(record, EE_CLR);
+    case LP_DRGSCRL(KC_X):
+        return process_tap_or_long_press_key(record, DRGSCRL);
   }
 
   return true;
