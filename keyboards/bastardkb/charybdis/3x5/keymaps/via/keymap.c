@@ -225,8 +225,8 @@ void pointing_device_init_user(void) {
 
 void keyboard_post_init_user(void) {
   // Customise these values to desired behaviour
-  debug_enable=true;
-  debug_matrix=true;
+  debug_enable=false;
+  debug_matrix=false;
   //debug_keyboard=true;
   //debug_mouse=true;
 }
@@ -239,6 +239,7 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
         case LP_EE_CLR:
             return TAPPING_TERM_LONG_PRESS*2;
         case LP_DRGSCRL(KC_X):
+            dprintf("get_tapping_term: DRGSCRL\n");
             return TAPPING_TERM;
 #ifdef CHARYBDIS_LAYOUT_COLEMAK_DHM
         case LGUI_T(KC_A):
@@ -275,8 +276,8 @@ static bool process_tap_or_long_press_key(
             case DRGSCRL:
                 // Enable pointer dragscroll when key is held as combo for pointer
                 // layer with drag scroll does not always work seamlessly.
-                charybdis_set_pointer_dragscroll_enabled(true);
-                layer_on(LAYER_POINTER);
+                dprintf("process_tap_or_long_press_key: DRGSCRL\n");
+                register_code16(DRGSCRL);
                 break;
             default:
                 tap_code(long_press_keycode);
@@ -296,6 +297,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record) {
     case LP_EE_CLR :  // No key on tap, EEPROM Clear on long press.
         return process_tap_or_long_press_key(record, EE_CLR);
     case LP_DRGSCRL(KC_X):
+        dprintf("process_record_user: DRGSCRL\n");
         return process_tap_or_long_press_key(record, DRGSCRL);
   }
 
