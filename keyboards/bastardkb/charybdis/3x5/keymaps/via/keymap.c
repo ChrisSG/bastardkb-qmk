@@ -239,7 +239,6 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
         case LP_EE_CLR:
             return TAPPING_TERM_LONG_PRESS*2;
         case LP_DRGSCRL(KC_X):
-            dprintf("get_tapping_term: DRGSCRL\n");
             return TAPPING_TERM;
 #ifdef CHARYBDIS_LAYOUT_COLEMAK_DHM
         case LGUI_T(KC_A):
@@ -276,8 +275,9 @@ static bool process_tap_or_long_press_key(
             case DRGSCRL:
                 // Enable pointer dragscroll when key is held as combo for pointer
                 // layer with drag scroll does not always work seamlessly.
-                dprintf("process_tap_or_long_press_key: DRGSCRL\n");
-                register_code16(DRGSCRL);
+                layer_on(LAYER_POINTER);
+                set_auto_mouse_enable(true);
+                charybdis_set_pointer_dragscroll_enabled(true);
                 break;
             default:
                 tap_code(long_press_keycode);
