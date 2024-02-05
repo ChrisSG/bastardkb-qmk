@@ -36,9 +36,11 @@ enum charybdis_keymap_layers {
 #define ENT_SYM LT(LAYER_SYMBOLS, KC_ENT)
 #define BSP_NUM LT(LAYER_NUMERAL, KC_BSPC)
 #define _L_PTR(KC) LT(LAYER_POINTER, KC)
-#define LP_QK_BOOT LT(0, KC_NO)   // long_press_keycode QMK Bootloader
-#define LP_EE_CLR LT(-1, KC_NO)   // long_press_keycode EEPROM Clear
-#define LP_DRGSCRL(KC) LT(-2, KC) // long_press_keycode Drag Scroll
+#define LP_QK_BOOT LT(0, KC_NO)    // long_press_keycode QMK Bootloader
+#define LP_EE_CLR LT(-1, KC_NO)    // long_press_keycode EEPROM Clear
+#define LP_DRGSCRL(KC) LT(-2, KC)  // long_press_keycode Drag Scroll
+#define LP_DPI_MOD LT(-3, DPI_MOD) // long_press_keycode DPI Mod
+#define LP_S_D_MOD LT(-4, S_D_MOD) // long_press_keycode Speed Mod
 
 #ifndef POINTING_DEVICE_ENABLE
 #    define DRGSCRL KC_NO
@@ -111,7 +113,7 @@ ESC_MED, SPC_NAV, TAB_FUN, ENT_SYM, BSP_NUM
 
 /** \brief Mouse emulation and pointer functions. */
 #define LAYOUT_LAYER_POINTER                                                                  \
-    XXXXXXX, XXXXXXX, XXXXXXX, DPI_MOD, S_D_MOD, S_D_MOD, DPI_MOD, XXXXXXX, XXXXXXX, XXXXXXX, \
+    XXXXXXX, XXXXXXX, XXXXXXX, LP_DPI_MOD, LP_S_D_MOD, LP_S_D_MOD, LP_DPI_MOD, XXXXXXX, XXXXXXX, XXXXXXX, \
     ______________HOME_ROW_GACS_L______________, ______________HOME_ROW_GACS_R______________, \
     _______, DRGSCRL, SNIPING,  LP_EE_CLR, LP_QK_BOOT, LP_QK_BOOT,  LP_EE_CLR, SNIPING, DRGSCRL, _______, \
                       KC_BTN2, KC_BTN1, KC_BTN3, KC_BTN3, KC_BTN1
@@ -225,8 +227,8 @@ void pointing_device_init_user(void) {
 
 void keyboard_post_init_user(void) {
   // Customise these values to desired behaviour
-  debug_enable=false;
-  debug_matrix=false;
+    debug_enable=false;
+    debug_matrix=false;
   //debug_keyboard=true;
   //debug_mouse=true;
 }
@@ -239,6 +241,8 @@ uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
         case LP_EE_CLR:
             return TAPPING_TERM_LONG_PRESS*2;
         case LP_DRGSCRL(KC_X):
+        case LP_DPI_MOD:
+        case LP_S_D_MOD:
             return TAPPING_TERM;
 #ifdef CHARYBDIS_LAYOUT_COLEMAK_DHM
         case LGUI_T(KC_A):
@@ -272,6 +276,12 @@ static bool process_tap_or_long_press_key(
                 // EEPROM Clear on long press as accidental triggering on mouse layer is annoying.
                 eeconfig_init();
                 break;
+            case DPI_MOD:
+            case S_D_MOD:
+                // Enable DPI Mod on long press as combo for pointer
+                // layer with DPI Mod does not always work seamlessly.
+                process_record_kb(long_press_keycode, record);
+                break;
             case DRGSCRL:
                 // Enable pointer dragscroll when key is held as combo for pointer
                 // layer with drag scroll does not always work seamlessly.
@@ -296,8 +306,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record) {
         return process_tap_or_long_press_key(record, QK_BOOT);
     case LP_EE_CLR :  // No key on tap, EEPROM Clear on long press.
         return process_tap_or_long_press_key(record, EE_CLR);
+    case LP_DPI_MOD:  // No key on tap, DPI Mod on long press.
+        return process_tap_or_long_press_key(record, DPI_MOD);
+    case LP_S_D_MOD:  // No key on tap, Speed Mod on long press.
+        return process_tap_or_long_press_key(record, S_D_MOD);
     case LP_DRGSCRL(KC_X):
-        dprintf("process_record_user: DRGSCRL\n");
         return process_tap_or_long_press_key(record, DRGSCRL);
   }
 
